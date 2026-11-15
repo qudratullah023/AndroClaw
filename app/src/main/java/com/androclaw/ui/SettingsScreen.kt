@@ -184,6 +184,7 @@ fun SettingsScreen(
                     "gemini" -> "AIza..."
                     "groq" -> "gsk_..."
                     "openrouter" -> "sk-or-v1-..."
+                    "xkiro" -> "sk-xt-..."
                     else -> "Enter API key..."
                 }
 
