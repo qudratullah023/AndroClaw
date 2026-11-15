@@ -96,6 +96,15 @@ class SettingsViewModel @Inject constructor(
         return providerRegistry.getProvider(providerId)?.supportedModels ?: emptyList()
     }
 
+    suspend fun fetchModelsForCurrentProvider(): Result<List<ModelInfo>> {
+        val providerId = getProvider()
+        val apiKey = getApiKeyForProvider(providerId)
+        if (apiKey.isBlank()) return Result.failure(IllegalStateException("Enter and save the API key first."))
+        val provider = providerRegistry.getProvider(providerId)
+            ?: return Result.failure(IllegalStateException("Unknown provider: $providerId"))
+        return provider.fetchModels(apiKey)
+    }
+
     // ── Tools ──
 
     fun getEnabledTools(): Set<String> =
