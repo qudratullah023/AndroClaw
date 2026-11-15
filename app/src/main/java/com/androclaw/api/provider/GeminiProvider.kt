@@ -26,12 +26,50 @@ class GeminiProvider(private val okHttpClient: OkHttpClient) : LlmProvider {
     override val supportsVision = true
 
     override val supportedModels = listOf(
-        ModelInfo("gemini-2.5-pro", "Gemini 2.5 Pro", 1000000, supportsVision = true),
-        ModelInfo("gemini-2.5-flash", "Gemini 2.5 Flash", 1000000, supportsVision = true),
-        ModelInfo("gemini-2.0-flash", "Gemini 2.0 Flash", 1000000, supportsVision = true)
+        ModelInfo("gemini-3.8-flash", "Gemini 3.8 Flash", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.7-flash", "Gemini 3.7 Flash", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.6-flash", "Gemini 3.6 Flash", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.5-flash", "Gemini 3.5 Flash", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", 1000000, supportsVision = true),
+        ModelInfo("gemini-3.1-flash-lite", "Gemini 3.1 Flash-Lite", 1000000, supportsVision = true)
     )
 
     private val baseUrl = "https://generativelanguage.googleapis.com/v1beta"
+
+    override suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> {
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/models?key=$apiKey")
+                .get()
+                .build()
+            val response = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                okHttpClient.newCall(request).execute()
+            }
+            val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty Gemini model catalogue response"))
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("Gemini model catalogue error ${response.code}: $responseBody"))
+            }
+            val modelsJson = JSONObject(responseBody).optJSONArray("models") ?: JSONArray()
+            val models = mutableListOf<ModelInfo>()
+            for (i in 0 until modelsJson.length()) {
+                val item = modelsJson.optJSONObject(i) ?: continue
+                val methods = item.optJSONArray("supportedGenerationMethods") ?: continue
+                if ((0 until methods.length()).none { methods.optString(it) == "generateContent" }) continue
+                val id = item.optString("name").removePrefix("models/")
+                if (id.isBlank()) continue
+                models.add(ModelInfo(
+                    id = id,
+                    displayName = item.optString("displayName", id),
+                    contextWindow = item.optInt("inputTokenLimit", 0),
+                    supportsVision = true
+                ))
+            }
+            Result.success(models.sortedBy { it.displayName.lowercase() })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     override suspend fun sendMessage(
         apiKey: String,
