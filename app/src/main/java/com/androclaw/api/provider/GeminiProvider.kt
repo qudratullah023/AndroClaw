@@ -220,11 +220,7 @@ class GeminiProvider(private val okHttpClient: OkHttpClient) : LlmProvider {
                 params.put("type", "OBJECT")
                 val props = JSONObject()
                 for ((key, prop) in tool.inputSchema.properties) {
-                    val propObj = JSONObject()
-                    propObj.put("type", prop.type.uppercase())
-                    prop.description?.let { propObj.put("description", it) }
-                    prop.enum?.let { propObj.put("enum", JSONArray(it)) }
-                    props.put(key, propObj)
+                    props.put(key, propertySchemaToJson(prop))
                 }
                 params.put("properties", props)
                 if (tool.inputSchema.required.isNotEmpty()) {
@@ -237,6 +233,30 @@ class GeminiProvider(private val okHttpClient: OkHttpClient) : LlmProvider {
         }
 
         return body
+    }
+
+
+    /**
+     * Convert a tool property schema recursively. Gemini requires an "items"
+     * schema for ARRAY properties; omitting it makes the entire function
+     * declaration invalid even when the array is optional.
+     */
+    private fun propertySchemaToJson(prop: com.androclaw.api.models.PropertySchema): JSONObject {
+        return JSONObject().apply {
+            put("type", prop.type.uppercase())
+            prop.description?.let { put("description", it) }
+            prop.enum?.let { put("enum", JSONArray(it)) }
+            if (prop.type.equals("array", ignoreCase = true)) {
+                val itemSchema = prop.items
+                if (itemSchema != null) {
+                    put("items", propertySchemaToJson(itemSchema))
+                } else {
+                    // Keep malformed local definitions from producing an invalid
+                    // Gemini request. An unspecified array item defaults to STRING.
+                    put("items", JSONObject().put("type", "STRING"))
+                }
+            }
+        }
     }
 
     private fun parseResponse(json: JSONObject, model: String): LlmResponse {
