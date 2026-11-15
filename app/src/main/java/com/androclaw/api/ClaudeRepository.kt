@@ -139,11 +139,21 @@ class ClaudeRepository @Inject constructor(
 
         while (attempts < maxLoopIterations) {
 
-            val response: LlmResponse = if (streaming) {
-                sendStreaming(provider, apiKey, model, systemPrompt, conversationHistory, tools)
-            } else {
-                val result = sendWithRetry(provider, apiKey, model, systemPrompt, conversationHistory, tools)
-                result ?: return Result.failure(Exception("Failed to get response after retries."))
+            val response: LlmResponse = try {
+                if (streaming) {
+                    sendStreaming(provider, apiKey, model, systemPrompt, conversationHistory, tools)
+                } else {
+                    val result = sendWithRetry(provider, apiKey, model, systemPrompt, conversationHistory, tools)
+                    result ?: return Result.failure(Exception("Failed to get response after retries."))
+                }
+            } catch (e: Exception) {
+                // Streaming providers can fail before or during collection (for
+                // example, when Gemini rejects an invalid function declaration).
+                // Surface the error to the UI instead of letting it escape the
+                // message coroutine and crash the application.
+                val message = e.message ?: "The AI provider request failed."
+                _agentEvents.emit(AgentEvent.Error(message))
+                return Result.failure(e)
             }
 
             // Add assistant response to history
