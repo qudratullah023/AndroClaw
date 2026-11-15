@@ -63,7 +63,17 @@ class ClaudeRepository @Inject constructor(
 
     private fun getModel(): String {
         val saved = prefs.getString(Constants.PREF_MODEL, Constants.DEFAULT_MODEL) ?: Constants.DEFAULT_MODEL
-        return saved
+        val migrated = if (getProvider() == "gemini") {
+            when (saved) {
+                "gemini-2.5-flash", "gemini-2.0-flash" -> "gemini-3.8-flash"
+                "gemini-2.5-pro" -> "gemini-3.1-pro-preview"
+                else -> saved
+            }
+        } else {
+            saved
+        }
+        if (migrated != saved) prefs.edit().putString(Constants.PREF_MODEL, migrated).apply()
+        return migrated
     }
 
     private fun getEnabledTools(): Set<String> =
