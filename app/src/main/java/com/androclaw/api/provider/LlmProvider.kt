@@ -38,6 +38,9 @@ interface LlmProvider {
     val supportsStreaming: Boolean
     val supportsVision: Boolean
 
+    /** Fetch the provider's live model catalogue when supported. */
+    suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> = Result.success(supportedModels)
+
     /**
      * Send a non-streaming request. Returns the complete response.
      */
