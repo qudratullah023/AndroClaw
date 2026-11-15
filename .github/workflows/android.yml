@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "fix/gemini-crash-android10"]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
