@@ -37,18 +37,17 @@ class GeminiProvider(private val okHttpClient: OkHttpClient) : LlmProvider {
 
     private val baseUrl = "https://generativelanguage.googleapis.com/v1beta"
 
-    override suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> {
-        return try {
+    override suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url("$baseUrl/models?key=$apiKey")
                 .get()
                 .build()
-            val response = kotlinx.coroutines.withContext(Dispatchers.IO) {
-                okHttpClient.newCall(request).execute()
-            }
-            val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty Gemini model catalogue response"))
+            val response = okHttpClient.newCall(request).execute()
+            val responseBody = response.body?.string()
+                ?: return@withContext Result.failure(Exception("Empty Gemini model catalogue response"))
             if (!response.isSuccessful) {
-                return Result.failure(Exception("Gemini model catalogue error ${response.code}: $responseBody"))
+                return@withContext Result.failure(Exception("Gemini model catalogue error ${response.code}: $responseBody"))
             }
             val modelsJson = JSONObject(responseBody).optJSONArray("models") ?: JSONArray()
             val models = mutableListOf<ModelInfo>()
