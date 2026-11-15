@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.androclaw.ui.theme.Accent
 import com.androclaw.utils.Constants
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +81,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var showClearDialog by remember { mutableStateOf(false) }
+    var selectedProvider by remember { mutableStateOf(viewModel.getProvider()) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -119,7 +122,7 @@ fun SettingsScreen(
             // ── LLM Provider ──
             SettingsSection(title = "LLM Provider", icon = Icons.Outlined.Cloud) {
                 var providerExpanded by remember { mutableStateOf(false) }
-                var currentProvider by remember { mutableStateOf(viewModel.getProvider()) }
+                val currentProvider = selectedProvider
                 val allProviders = viewModel.providerRegistry.getAllProviders()
                 val providerObj = viewModel.providerRegistry.getProvider(currentProvider)
 
@@ -158,7 +161,7 @@ fun SettingsScreen(
                                     }
                                 },
                                 onClick = {
-                                    currentProvider = provider.id
+                                    selectedProvider = provider.id
                                     viewModel.setProvider(provider.id)
                                     providerExpanded = false
                                 }
@@ -170,9 +173,7 @@ fun SettingsScreen(
 
             // ── API Key (per provider) ──
             SettingsSection(title = "API Key", icon = Icons.Outlined.Key) {
-                var currentProvider by remember { mutableStateOf(viewModel.getProvider()) }
-                // Re-read when provider changes
-                currentProvider = viewModel.getProvider()
+                val currentProvider = selectedProvider
                 val providerObj = viewModel.providerRegistry.getProvider(currentProvider)
                 var apiKey by remember(currentProvider) { mutableStateOf(viewModel.getApiKeyForProvider(currentProvider)) }
                 var showKey by remember { mutableStateOf(false) }
@@ -332,10 +333,55 @@ fun SettingsScreen(
 
             // ── Model Selection (dynamic per provider) ──
             SettingsSection(title = "Model", icon = Icons.Outlined.SmartToy) {
+                val providerId = selectedProvider
+                var models by remember(providerId) {
+                    mutableStateOf(viewModel.getModelsForCurrentProvider())
+                }
                 var expanded by remember { mutableStateOf(false) }
-                val models = viewModel.getModelsForCurrentProvider()
+                var isRefreshing by remember { mutableStateOf(false) }
+                var catalogueMessage by remember(providerId) { mutableStateOf("") }
+                val scope = rememberCoroutineScope()
                 val currentModel = viewModel.getModel()
                 val currentModelInfo = models.find { it.id == currentModel }
+
+                Text(
+                    text = "Choose a model. Use Refresh models to load the latest models directly from the selected provider.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    enabled = !isRefreshing,
+                    onClick = {
+                        scope.launch {
+                            isRefreshing = true
+                            catalogueMessage = "Loading provider catalogue..."
+                            viewModel.fetchModelsForCurrentProvider().fold(
+                                onSuccess = { fetched ->
+                                    if (fetched.isNotEmpty()) {
+                                        models = fetched
+                                        catalogueMessage = "Loaded ${fetched.size} models."
+                                    } else {
+                                        catalogueMessage = "No chat models were returned. Showing the built-in list."
+                                    }
+                                },
+                                onFailure = { error ->
+                                    catalogueMessage = error.message ?: "Could not load models. Showing the built-in list."
+                                }
+                            )
+                            isRefreshing = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (isRefreshing) "Refreshing..." else "Refresh models")
+                }
+                if (catalogueMessage.isNotBlank()) {
+                    Text(
+                        text = catalogueMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 ExposedDropdownMenuBox(
                     expanded = expanded,
