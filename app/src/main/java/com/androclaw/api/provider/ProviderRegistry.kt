@@ -41,13 +41,16 @@ class ProviderRegistry @Inject constructor(
                 displayName = "OpenRouter",
                 baseUrl = "https://openrouter.ai/api/v1",
                 supportedModels = listOf(
-                    ModelInfo("google/gemini-3.8-flash", "Gemini 3.8 Flash (via OpenRouter)", 1000000, supportsVision = true),
-                    ModelInfo("google/gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview (via OpenRouter)", 1000000, supportsVision = true),
-                    ModelInfo("anthropic/claude-opus-5.5", "Claude Opus 5.5", 200000),
-                    ModelInfo("openai/gpt-6-luna", "GPT-6 Luna", 256000),
+                    ModelInfo("google/gemini-4-hydrogen", "Gemini 4 Hydrogen", 1048576, supportsVision = true),
+                    ModelInfo("google/gemini-4-carbon", "Gemini 4 Carbon", 1048576, supportsVision = true),
+                    ModelInfo("google/gemini-3.8-flash", "Gemini 3.8 Flash", 1000000, supportsVision = true),
+                    ModelInfo("anthropic/claude-fable-5.2", "Claude Fable 5.2", 1000000, supportsVision = true),
+                    ModelInfo("meta/muse-ember", "Muse Ember", 1048576, supportsVision = true),
                     ModelInfo("deepseek/deepseek-v4.1-flash", "DeepSeek V4.1 Flash", 1000000),
-                    ModelInfo("z-ai/glm-5.3", "GLM 5.3", 200000),
-                    ModelInfo("meta-llama/llama-4-maverick", "Llama 4 Maverick", 1000000)
+                    ModelInfo("z-ai/glm-5.3-flash", "GLM 5.3 Flash", 200000),
+                    ModelInfo("thinkingmachines/inkling-2-small", "Inkling 2 Small", 1048576, supportsVision = true),
+                    ModelInfo("baidu/ernie-5.5-flash-preview:free", "ERNIE 5.5 Flash Preview (Free)", 1024000),
+                    ModelInfo("liquid/lfm-3-1.7b", "LiquidAI LFM3 1.7B", 262144)
                 )
             ),
             okHttpClient = okHttpClient,
