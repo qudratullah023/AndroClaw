@@ -33,19 +33,49 @@ class ProviderRegistry @Inject constructor(
             )
         )
 
-        // OpenRouter — aggregates many models via OpenAI-compatible API
-        val openRouter = OpenAIProvider(
+        // OpenRouter — live catalogue is loaded from GET /api/v1/models.
+        val openRouter = CatalogOpenAIProvider(
+            delegate = OpenAIProvider(
+                okHttpClient = okHttpClient,
+                id = "openrouter",
+                displayName = "OpenRouter",
+                baseUrl = "https://openrouter.ai/api/v1",
+                supportedModels = listOf(
+                    ModelInfo("google/gemini-4-hydrogen", "Gemini 4 Hydrogen", 1048576, supportsVision = true),
+                    ModelInfo("google/gemini-4-carbon", "Gemini 4 Carbon", 1048576, supportsVision = true),
+                    ModelInfo("google/gemini-3.8-flash", "Gemini 3.8 Flash", 1000000, supportsVision = true),
+                    ModelInfo("anthropic/claude-fable-5.2", "Claude Fable 5.2", 1000000, supportsVision = true),
+                    ModelInfo("meta/muse-ember", "Muse Ember", 1048576, supportsVision = true),
+                    ModelInfo("deepseek/deepseek-v4.1-flash", "DeepSeek V4.1 Flash", 1000000),
+                    ModelInfo("z-ai/glm-5.3-flash", "GLM 5.3 Flash", 200000),
+                    ModelInfo("thinkingmachines/inkling-2-small", "Inkling 2 Small", 1048576, supportsVision = true),
+                    ModelInfo("baidu/ernie-5.5-flash-preview:free", "ERNIE 5.5 Flash Preview (Free)", 1024000),
+                    ModelInfo("liquid/lfm-3-1.7b", "LiquidAI LFM3 1.7B", 262144)
+                )
+            ),
             okHttpClient = okHttpClient,
             id = "openrouter",
             displayName = "OpenRouter",
-            baseUrl = "https://openrouter.ai/api/v1",
-            supportedModels = listOf(
-                ModelInfo("anthropic/claude-sonnet-4", "Claude Sonnet 4 (via OR)", 200000),
-                ModelInfo("openai/gpt-4o", "GPT-4o (via OR)", 128000),
-                ModelInfo("google/gemini-2.5-pro", "Gemini 2.5 Pro (via OR)", 1000000),
-                ModelInfo("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B (via OR)", 131072),
-                ModelInfo("deepseek/deepseek-r1", "DeepSeek R1 (via OR)", 65536)
-            )
+            catalogUrl = "https://openrouter.ai/api/v1/models"
+        )
+
+        // xKiro — OpenAI-compatible gateway with vendor/model IDs and live catalogue.
+        val xkiro = CatalogOpenAIProvider(
+            delegate = OpenAIProvider(
+                okHttpClient = okHttpClient,
+                id = "xkiro",
+                displayName = "xKiro",
+                baseUrl = "https://api.xkiro.com/v1",
+                supportedModels = listOf(
+                    ModelInfo("openai/gpt-5.6-sol", "GPT-5.6 Sol (xKiro)", 256000),
+                    ModelInfo("anthropic/claude-opus-5", "Claude Opus 5 (xKiro)", 200000),
+                    ModelInfo("z-ai/glm-5.2", "GLM 5.2 (xKiro)", 200000)
+                )
+            ),
+            okHttpClient = okHttpClient,
+            id = "xkiro",
+            displayName = "xKiro",
+            catalogUrl = "https://api.xkiro.com/v1/models"
         )
 
         register(claude)
@@ -53,6 +83,7 @@ class ProviderRegistry @Inject constructor(
         register(gemini)
         register(groq)
         register(openRouter)
+        register(xkiro)
     }
 
     fun register(provider: LlmProvider) {

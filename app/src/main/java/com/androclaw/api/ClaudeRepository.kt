@@ -63,7 +63,17 @@ class ClaudeRepository @Inject constructor(
 
     private fun getModel(): String {
         val saved = prefs.getString(Constants.PREF_MODEL, Constants.DEFAULT_MODEL) ?: Constants.DEFAULT_MODEL
-        return saved
+        val migrated = if (getProvider() == "gemini") {
+            when (saved) {
+                "gemini-2.5-flash", "gemini-2.0-flash" -> "gemini-3.8-flash"
+                "gemini-2.5-pro" -> "gemini-3.1-pro-preview"
+                else -> saved
+            }
+        } else {
+            saved
+        }
+        if (migrated != saved) prefs.edit().putString(Constants.PREF_MODEL, migrated).apply()
+        return migrated
     }
 
     private fun getEnabledTools(): Set<String> =
@@ -139,11 +149,21 @@ class ClaudeRepository @Inject constructor(
 
         while (attempts < maxLoopIterations) {
 
-            val response: LlmResponse = if (streaming) {
-                sendStreaming(provider, apiKey, model, systemPrompt, conversationHistory, tools)
-            } else {
-                val result = sendWithRetry(provider, apiKey, model, systemPrompt, conversationHistory, tools)
-                result ?: return Result.failure(Exception("Failed to get response after retries."))
+            val response: LlmResponse = try {
+                if (streaming) {
+                    sendStreaming(provider, apiKey, model, systemPrompt, conversationHistory, tools)
+                } else {
+                    val result = sendWithRetry(provider, apiKey, model, systemPrompt, conversationHistory, tools)
+                    result ?: return Result.failure(Exception("Failed to get response after retries."))
+                }
+            } catch (e: Exception) {
+                // Streaming providers can fail before or during collection (for
+                // example, when Gemini rejects an invalid function declaration).
+                // Surface the error to the UI instead of letting it escape the
+                // message coroutine and crash the application.
+                val message = e.message ?: "The AI provider request failed."
+                _agentEvents.emit(AgentEvent.Error(message))
+                return Result.failure(e)
             }
 
             // Add assistant response to history
